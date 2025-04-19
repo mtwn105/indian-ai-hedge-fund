@@ -2,7 +2,7 @@ from pydantic import BaseModel
 import json
 from typing_extensions import Literal
 from indian_ai_hedge_fund.tools.finance import get_latest_financial_metrics, FinancialMetrics, get_historical_financial_metrics
-import logging
+from indian_ai_hedge_fund.utils.logging_config import logger
 from indian_ai_hedge_fund.llm.models import llm
 from indian_ai_hedge_fund.prompts.ben_graham import SYSTEM_PROMPT, HUMAN_PROMPT
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -25,30 +25,30 @@ def process_single_ticker(ticker: str) -> tuple[str, dict[str, any]]:
         Tuple of (ticker, analysis_result)
     """
     try:
-        logging.info("Analyzing %s", ticker)
+        logger.info(f"Analyzing {ticker}")
 
         # Fetch financial metrics
-        logging.info("Fetching financial metrics for %s", ticker)
+        logger.info(f"Fetching financial metrics for {ticker}")
         metrics = get_latest_financial_metrics(ticker)
         historical_metrics = get_historical_financial_metrics(ticker, periods=10)
-        logging.info("Finished fetching financial metrics for %s", ticker)
+        logger.info(f"Finished fetching financial metrics for {ticker}")
 
         # Get market cap
-        logging.info("Getting market cap for %s", ticker)
+        logger.info(f"Getting market cap for {ticker}")
         market_cap = metrics.market_cap
 
         # Perform sub-analyses
-        logging.info("Analyzing earnings stability for %s", ticker)
+        logger.info(f"Analyzing earnings stability for {ticker}")
         earnings_analysis = analyze_earnings_stability(metrics, historical_metrics)
-        logging.info("Finished analyzing earnings stability for %s", ticker)
+        logger.info(f"Finished analyzing earnings stability for {ticker}")
 
-        logging.info("Analyzing financial strength for %s", ticker)
+        logger.info(f"Analyzing financial strength for {ticker}")
         strength_analysis = analyze_financial_strength(metrics, historical_metrics)
-        logging.info("Finished analyzing financial strength for %s", ticker)
+        logger.info(f"Finished analyzing financial strength for {ticker}")
 
-        logging.info("Analyzing Graham valuation for %s", ticker)
+        logger.info(f"Analyzing Graham valuation for {ticker}")
         valuation_analysis = analyze_valuation_graham(metrics, historical_metrics, market_cap)
-        logging.info("Finished analyzing Graham valuation for %s", ticker)
+        logger.info(f"Finished analyzing Graham valuation for {ticker}")
 
         # Calculate total score
         total_score = earnings_analysis["score"] + strength_analysis["score"] + valuation_analysis["score"]
@@ -76,7 +76,7 @@ def process_single_ticker(ticker: str) -> tuple[str, dict[str, any]]:
         return ticker, graham_signal
 
     except Exception as e:
-        logging.error("Error analyzing %s: %s", ticker, e)
+        logger.exception(f"Error analyzing {ticker}: {str(e)}")
         return ticker, None
 
 def ben_graham_analyst(tickers: list[str]) -> dict[str, any]:
@@ -106,7 +106,7 @@ def ben_graham_analyst(tickers: list[str]) -> dict[str, any]:
                 if result is not None:
                     graham_analysis[ticker] = result
             except Exception as e:
-                logging.error("Error processing %s: %s", ticker, e)
+                logger.exception(f"Error processing {ticker}: {str(e)}")
                 continue
 
     return graham_analysis

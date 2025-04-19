@@ -7,16 +7,11 @@ from rich.markdown import Markdown
 from rich.console import Console
 import questionary
 from indian_ai_hedge_fund.prompts.portfolio_review import SYSTEM_PROMPT, HUMAN_PROMPT
-import logging
 from indian_ai_hedge_fund.tools.zerodha import get_holdings
 from pydantic import BaseModel
 from typing import List, Dict, Tuple, Callable
 from indian_ai_hedge_fund.llm.models import llm
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+from indian_ai_hedge_fund.utils.logging_config import logger
 
 # Define argument schemas
 class GetHoldingsArgs(BaseModel):
@@ -27,13 +22,17 @@ class AnalystArgs(BaseModel):
 
 def get_analysts() -> Dict[str, Tuple[str, Callable]]:
     """Get available analysts with their display names and functions"""
-    return {
+    logger.debug("Getting available analysts")
+    analysts = {
         'Warren Buffett': ('Warren Buffett', warren_buffett_analyst),
         'Benjamin Graham': ('Benjamin Graham', ben_graham_analyst),
     }
+    logger.debug(f"Found {len(analysts)} analysts")
+    return analysts
 
 def select_analyst() -> Tuple[str, Callable]:
     """Interactive analyst selection using questionary"""
+    logger.info("Starting analyst selection process")
     analysts = get_analysts()
 
     # Create choices list
@@ -60,12 +59,15 @@ def select_analyst() -> Tuple[str, Callable]:
     ).ask()
 
     if not selected:
+        logger.error("No analyst was selected")
         raise ValueError("No analyst selected")
 
+    logger.info(f"Selected analyst: {selected}")
     return analysts[selected]
 
 def main():
     console = Console()
+    logger.info("Starting Indian AI Hedge Fund application")
 
     try:
         # Get analyst selection
@@ -75,8 +77,10 @@ def main():
 
         # Convert analyst name to tool name format
         analyst_name = selected_name.lower().replace(' ', '_')
+        logger.debug(f"Converted analyst name to tool format: {analyst_name}")
 
         # Create LangChain tools
+        logger.debug("Creating LangChain tools")
         tools = [
             StructuredTool(
                 name="get_holdings",
@@ -94,6 +98,7 @@ def main():
             )
         ]
 
+        logger.debug("Setting up LangChain prompt")
         prompt = ChatPromptTemplate.from_messages([
             ("system", SYSTEM_PROMPT),
             ("human", HUMAN_PROMPT),
@@ -101,6 +106,7 @@ def main():
         ])
 
         # Create the LangChain agent
+        logger.info("Creating LangChain agent")
         agent = create_openai_tools_agent(
             llm=llm,
             tools=tools,
@@ -108,6 +114,7 @@ def main():
         )
 
         # Create the agent executor
+        logger.debug("Creating agent executor")
         agent_executor = AgentExecutor(
             agent=agent,
             tools=tools,
@@ -118,12 +125,16 @@ def main():
         )
 
         # Run the analysis
+        logger.info("Starting portfolio analysis")
         response = agent_executor.invoke({"input": "analyze my portfolio"})
         console.print(Markdown(response["output"]))
+        logger.info("Portfolio analysis completed successfully")
 
     except KeyboardInterrupt:
+        logger.warning("Operation cancelled by user")
         console.print("\n[yellow]Operation cancelled by user[/yellow]")
     except Exception as e:
+        logger.exception("An error occurred during execution")
         console.print(f"\n[red bold]Error:[/red bold] {str(e)}")
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@ from pydantic import BaseModel
 import json
 from typing_extensions import Literal
 from indian_ai_hedge_fund.tools.finance import get_latest_financial_metrics, FinancialMetrics, get_historical_financial_metrics
-import logging
+from indian_ai_hedge_fund.utils.logging_config import logger
 from indian_ai_hedge_fund.llm.models import llm
 from indian_ai_hedge_fund.prompts.warrent_buffet import SYSTEM_PROMPT, HUMAN_PROMPT
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -24,47 +24,47 @@ def process_single_ticker(ticker: str) -> tuple[str, dict[str, any]]:
         Tuple of (ticker, analysis_result)
     """
     try:
-        logging.info("Analyzing %s", ticker)
-        logging.info("Fetching financial metrics for %s", ticker)
+        logger.info(f"Analyzing {ticker}")
+        logger.info(f"Fetching financial metrics for {ticker}")
         metrics = get_latest_financial_metrics(ticker)
         historical_metrics = get_historical_financial_metrics(ticker, periods=5)
-        logging.info("Finished fetching financial metrics for %s", ticker)
+        logger.info(f"Finished fetching financial metrics for {ticker}")
 
-        logging.debug("Latest metrics: %s", metrics)
-        logging.debug("Historical metrics: %s", historical_metrics)
+        logger.debug(f"Latest metrics: {metrics}")
+        logger.debug(f"Historical metrics: {historical_metrics}")
 
-        logging.info("Getting market cap for %s", ticker)
+        logger.info(f"Getting market cap for {ticker}")
         market_cap = metrics.market_cap
 
-        logging.info("Analyzing fundamentals for %s", ticker)
+        logger.info(f"Analyzing fundamentals for {ticker}")
         fundamental_analysis = analyze_fundamentals(metrics)
-        logging.info("Finished analyzing fundamentals for %s", ticker)
+        logger.info(f"Finished analyzing fundamentals for {ticker}")
 
-        logging.debug("Fundamental analysis: %s", fundamental_analysis)
+        logger.debug(f"Fundamental analysis: {fundamental_analysis}")
 
-        logging.info("Analyzing consistency for %s", ticker)
+        logger.info(f"Analyzing consistency for {ticker}")
         consistency_analysis = analyze_consistency(historical_metrics)
-        logging.info("Finished analyzing consistency for %s", ticker)
+        logger.info(f"Finished analyzing consistency for {ticker}")
 
-        logging.debug("Consistency analysis: %s", consistency_analysis)
+        logger.debug(f"Consistency analysis: {consistency_analysis}")
 
-        logging.info("Analyzing moat for %s", ticker)
+        logger.info(f"Analyzing moat for {ticker}")
         moat_analysis = analyze_moat(historical_metrics)
-        logging.info("Finished analyzing moat for %s", ticker)
+        logger.info(f"Finished analyzing moat for {ticker}")
 
-        logging.debug("Moat Analysis: %s", moat_analysis)
+        logger.debug(f"Moat Analysis: {moat_analysis}")
 
-        logging.info("Analyzing management quality for %s", ticker)
+        logger.info(f"Analyzing management quality for {ticker}")
         mgmt_analysis = analyze_management_quality(metrics)
-        logging.info("Finished analyzing management quality for %s", ticker)
+        logger.info(f"Finished analyzing management quality for {ticker}")
 
-        logging.debug("Management Quality: %s", mgmt_analysis)
+        logger.debug(f"Management Quality: {mgmt_analysis}")
 
-        logging.info("Calculating intrinsic value for %s", ticker)
+        logger.info(f"Calculating intrinsic value for {ticker}")
         intrinsic_value_analysis = calculate_intrinsic_value(metrics)
-        logging.info("Finished calculating intrinsic value for %s", ticker)
+        logger.info(f"Finished calculating intrinsic value for {ticker}")
 
-        logging.debug("Intrinsic Value: %s", intrinsic_value_analysis)
+        logger.debug(f"Intrinsic Value: {intrinsic_value_analysis}")
 
         # Calculate total score
         total_score = fundamental_analysis["score"] + consistency_analysis["score"] + moat_analysis["score"] + mgmt_analysis["score"]
@@ -99,15 +99,15 @@ def process_single_ticker(ticker: str) -> tuple[str, dict[str, any]]:
             "margin_of_safety": margin_of_safety,
         }
 
-        logging.info("Analysis Data for %s: %s", ticker, analysis_data)
+        logger.info(f"Analysis Data for {ticker}: {analysis_data}")
 
         buffett_signal = generate_buffett_output(ticker, analysis_data)
-        logging.info("Buffett analysis for %s: %s", ticker, buffett_signal)
+        logger.info(f"Buffett analysis for {ticker}: {buffett_signal}")
 
         return ticker, buffett_signal
 
     except Exception as e:
-        logging.error("Error analyzing %s: %s", ticker, e)
+        logger.exception(f"Error analyzing {ticker}: {str(e)}")
         return ticker, None
 
 def warren_buffett_analyst(tickers: list[str]) -> dict[str, any]:
@@ -139,7 +139,7 @@ def warren_buffett_analyst(tickers: list[str]) -> dict[str, any]:
                 if result is not None:
                     buffett_analysis[ticker] = result
             except Exception as e:
-                logging.error("Error processing %s: %s", ticker, e)
+                logger.exception(f"Error processing {ticker}: {str(e)}")
                 continue
 
     return buffett_analysis
@@ -253,8 +253,8 @@ def analyze_moat(historical_metrics: list[FinancialMetrics]) -> dict[str, any]:
             historical_margins.append(m.operating_margin)
 
 
-    logging.debug("Historical ROEs: %s", historical_roes)
-    logging.debug("Historical Margins: %s", historical_margins)
+    logger.debug("Historical ROEs: %s", historical_roes)
+    logger.debug("Historical Margins: %s", historical_margins)
 
     # Check for stable or improving ROE
     if len(historical_roes) >= 3:

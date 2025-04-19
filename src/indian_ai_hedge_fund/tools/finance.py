@@ -1,7 +1,7 @@
 import yfinance as yf
 from pydantic import BaseModel
 import datetime
-import logging
+from indian_ai_hedge_fund.utils.logging_config import logger
 
 class FinancialMetrics(BaseModel):
     capital_expenditure: float | None = None
@@ -108,10 +108,10 @@ def get_historical_financial_metrics(ticker_symbol: str, periods: int = 5) -> li
     cashflow = ticker.get_cashflow(freq="yearly")
     info = ticker.info
 
-    logging.debug("Income Statement: %s", income_stmt)
-    logging.debug("Balance Sheet: %s", balance_sheet)
-    logging.debug("Cashflow: %s", cashflow)
-    logging.debug("Info: %s", info)
+    logger.debug(f"Income Statement: {income_stmt}")
+    logger.debug(f"Balance Sheet: {balance_sheet}")
+    logger.debug(f"Cashflow: {cashflow}")
+    logger.debug(f"Info: {info}")
 
     # Limit to last 5 periods if available
     income_stmt = income_stmt.iloc[:, :periods] if income_stmt.shape[1] >= periods else income_stmt
@@ -135,7 +135,7 @@ def get_historical_financial_metrics(ticker_symbol: str, periods: int = 5) -> li
     # Calculate metrics for each period
     periods = income_stmt.columns.tolist()
 
-    logging.debug("Periods: %s", periods)
+    logger.debug(f"Periods: {periods}")
 
     results = []
 

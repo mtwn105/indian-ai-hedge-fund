@@ -1,7 +1,7 @@
 from kiteconnect import KiteConnect
 from dotenv import load_dotenv
 import os
-import logging
+from indian_ai_hedge_fund.utils.logging_config import logger
 
 load_dotenv()
 
@@ -27,11 +27,11 @@ def get_user_profile() -> str:
     Returns:
         str: A string representation of the user's complete profile information from Zerodha
     """
-    logging.info("Entering get_user_profile")
+    logger.info("Entering get_user_profile")
     # Get user profile
     profile = kite.profile()
-    logging.info("Profile: %s", profile)
-    logging.info("Exiting get_user_profile")
+    logger.info(f"Profile: {profile}")
+    logger.info("Exiting get_user_profile")
     return str(profile)
 
 
@@ -56,11 +56,11 @@ def get_margins(segment: str) -> str:
     Returns:
         str: A string representation of the complete margins and funds information
     """
-    logging.info("Entering get_margins with segment: %s", segment)
+    logger.info(f"Entering get_margins with segment: {segment}")
     # Get margins for all segments
     margins = kite.margins(segment=segment)
-    logging.info("Margins: %s", margins)
-    logging.info("Exiting get_margins")
+    logger.info(f"Margins: {margins}")
+    logger.info("Exiting get_margins")
     return str(margins)
 
 
@@ -82,10 +82,10 @@ def get_holdings() -> str:
     Returns:
         str: A string representation of the complete holdings information
     """
-    logging.info("Entering get_holdings")
+    logger.info("Entering get_holdings")
     holdings = kite.holdings()
-    logging.info("Holdings: %s", holdings)
-    logging.info("Exiting get_holdings")
+    logger.info(f"Holdings: {holdings}")
+    logger.info("Exiting get_holdings")
     return holdings
 
 
@@ -108,10 +108,10 @@ def get_positions() -> str:
     Returns:
         str: A string representation of the complete positions information
     """
-    logging.info("Entering get_positions")
+    logger.info("Entering get_positions")
     positions = kite.positions()
-    logging.info("Positions: %s", positions)
-    logging.info("Exiting get_positions")
+    logger.info(f"Positions: {positions}")
+    logger.info("Exiting get_positions")
     return str(positions)
 
 
@@ -141,10 +141,10 @@ def get_orders() -> str:
     Returns:
         str: A string representation of all orders for the day
     """
-    logging.info("Entering get_orders")
+    logger.info("Entering get_orders")
     orders = kite.orders()
-    logging.info("Orders: %s", orders)
-    logging.info("Exiting get_orders")
+    logger.info(f"Orders: {orders}")
+    logger.info("Exiting get_orders")
     return str(orders)
 
 
@@ -166,10 +166,10 @@ def get_order_history(order_id: str) -> str:
     Returns:
         str: A string representation of the complete order history
     """
-    logging.info("Entering get_order_history with order_id: %s", order_id)
+    logger.info(f"Entering get_order_history with order_id: {order_id}")
     history = kite.order_history(order_id)
-    logging.info("Order history: %s", history)
-    logging.info("Exiting get_order_history")
+    logger.info(f"Order history: {history}")
+    logger.info("Exiting get_order_history")
     return str(history)
 
 
@@ -184,10 +184,10 @@ def get_order_trades(order_id: str) -> str:
     Returns:
         str: A string representation of all trades for the given order
     """
-    logging.info("Entering get_order_trades with order_id: %s", order_id)
+    logger.info(f"Entering get_order_trades with order_id: {order_id}")
     trades = kite.order_trades(order_id)
-    logging.info("Order trades: %s", trades)
-    logging.info("Exiting get_order_trades")
+    logger.info(f"Order trades: {trades}")
+    logger.info("Exiting get_order_trades")
     return str(trades)
 
 
@@ -198,20 +198,25 @@ def place_order(exchange: str, tradingsymbol: str, transaction_type: str,
 
     Args:
         exchange (str): Exchange in which the security is listed (NSE, BSE, NFO, etc)
-        tradingsymbol (str): Trading symbol of the security (RELIANCE, INFY, etc)
-        transaction_type (str): Transaction type (BUY or SELL)
-        quantity (int): Order quantity
-        price (float, optional): Order price for LIMIT orders
-        product (str, optional): Product code (CNC, MIS, etc). Default is CNC (delivery).
-        order_type (str, optional): Order type (MARKET, LIMIT, etc). Default is MARKET.
-        validity (str, optional): Order validity (DAY, IOC, etc). Default is DAY.
-        variety (str, optional): Order variety (regular, amo, bo, co, etc). Default is regular.
+        tradingsymbol (str): Trading symbol of the security
+        transaction_type (str): BUY or SELL
+        quantity (int): Number of shares/units to trade
+        price (float): Price at which to trade
+        product (str, optional): Product code. Defaults to "CNC".
+        order_type (str, optional): Type of order (MARKET, LIMIT, etc). Defaults to "MARKET".
+        validity (str, optional): Validity of the order. Defaults to "DAY".
+        variety (str, optional): Order variety (regular, amo, bo, co). Defaults to "regular".
+
     Returns:
         str: Order ID of the placed order
     """
-    logging.info(f"Entering place_order: exchange={exchange}, symbol={tradingsymbol}, type={transaction_type}, qty={quantity}, price={price}, product={product}, order_type={order_type}")
+    logger.info(f"Entering place_order with params: exchange={exchange}, tradingsymbol={tradingsymbol}, "
+               f"transaction_type={transaction_type}, quantity={quantity}, price={price}, product={product}, "
+               f"order_type={order_type}, validity={validity}, variety={variety}")
+
     try:
         order_id = kite.place_order(
+            variety=variety,
             exchange=exchange,
             tradingsymbol=tradingsymbol,
             transaction_type=transaction_type,
@@ -219,14 +224,13 @@ def place_order(exchange: str, tradingsymbol: str, transaction_type: str,
             price=price,
             product=product,
             order_type=order_type,
-            validity=validity,
-            variety=variety
+            validity=validity
         )
-        logging.info("Order placed. ID: %s", order_id)
-        return f"Order placed successfully. Order ID: {order_id}"
+        logger.info(f"Order placed successfully. Order ID: {order_id}")
+        return str(order_id)
     except Exception as e:
-        logging.error("Order placement failed: %s", str(e))
-        return f"Order placement failed: {str(e)}"
+        logger.exception(f"Error placing order: {str(e)}")
+        raise
 
 
 def modify_order(order_id: str, quantity: int,price: float, order_type: str,
@@ -244,7 +248,7 @@ def modify_order(order_id: str, quantity: int,price: float, order_type: str,
     Returns:
         str: Order ID of the modified order
     """
-    logging.info(f"Entering modify_order: order_id={order_id}, quantity={quantity}, price={price}, order_type={order_type}")
+    logger.info(f"Entering modify_order: order_id={order_id}, quantity={quantity}, price={price}, order_type={order_type}")
     try:
         order_id_resp = kite.modify_order(
             order_id=order_id,
@@ -254,10 +258,10 @@ def modify_order(order_id: str, quantity: int,price: float, order_type: str,
             trigger_price=trigger_price,
             validity=validity
         )
-        logging.info("Order modified. ID: %s", order_id_resp)
+        logger.info("Order modified. ID: %s", order_id_resp)
         return f"Order modified successfully. Order ID: {order_id_resp}"
     except Exception as e:
-        logging.error("Order modification failed: %s", str(e))
+        logger.error("Order modification failed: %s", str(e))
         return f"Order modification failed: {str(e)}"
 
 
@@ -271,13 +275,13 @@ def cancel_order(order_id: str, variety: str = "regular") -> str:
     Returns:
         str: Order ID of the cancelled order
     """
-    logging.info(f"Entering cancel_order: order_id={order_id}")
+    logger.info(f"Entering cancel_order: order_id={order_id}")
     try:
         order_id_resp = kite.cancel_order(variety=variety, order_id=order_id)
-        logging.info("Order cancelled. ID: %s", order_id_resp)
+        logger.info("Order cancelled. ID: %s", order_id_resp)
         return f"Order cancelled successfully. Order ID: {order_id_resp}"
     except Exception as e:
-        logging.error("Order cancellation failed: %s", str(e))
+        logger.error("Order cancellation failed: %s", str(e))
         return f"Order cancellation failed: {str(e)}"
 
 
