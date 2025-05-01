@@ -8,6 +8,8 @@ from indian_ai_hedge_fund.prompts.ben_graham import SYSTEM_PROMPT, HUMAN_PROMPT
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from langchain_core.prompts import ChatPromptTemplate
 import math
+from indian_ai_hedge_fund.utils.progress import progress
+import traceback
 
 class BenGrahamSignal(BaseModel):
     signal: Literal["bullish", "bearish", "neutral"]
@@ -26,27 +28,33 @@ def process_single_ticker(ticker: str) -> tuple[str, dict[str, any]]:
     """
     try:
         logger.info(f"Analyzing {ticker}")
+        progress.update_status("ben_graham_agent", ticker, "Analyzing")
 
         # Fetch financial metrics
         logger.info(f"Fetching financial metrics for {ticker}")
+        progress.update_status("ben_graham_agent", ticker, "Fetching metrics")
         metrics = get_latest_financial_metrics(ticker)
         historical_metrics = get_historical_financial_metrics(ticker, periods=10)
         logger.info(f"Finished fetching financial metrics for {ticker}")
 
         # Get market cap
         logger.info(f"Getting market cap for {ticker}")
+        progress.update_status("ben_graham_agent", ticker, "Calculating market cap")
         market_cap = metrics.market_cap
 
         # Perform sub-analyses
         logger.info(f"Analyzing earnings stability for {ticker}")
+        progress.update_status("ben_graham_agent", ticker, "Analyzing earnings")
         earnings_analysis = analyze_earnings_stability(metrics, historical_metrics)
         logger.info(f"Finished analyzing earnings stability for {ticker}")
 
         logger.info(f"Analyzing financial strength for {ticker}")
+        progress.update_status("ben_graham_agent", ticker, "Analyzing financials")
         strength_analysis = analyze_financial_strength(metrics, historical_metrics)
         logger.info(f"Finished analyzing financial strength for {ticker}")
 
         logger.info(f"Analyzing Graham valuation for {ticker}")
+        progress.update_status("ben_graham_agent", ticker, "Calculating valuation")
         valuation_analysis = analyze_valuation_graham(metrics, historical_metrics, market_cap)
         logger.info(f"Finished analyzing Graham valuation for {ticker}")
 
@@ -72,11 +80,14 @@ def process_single_ticker(ticker: str) -> tuple[str, dict[str, any]]:
             "valuation_analysis": valuation_analysis
         }
 
+        progress.update_status("ben_graham_agent", ticker, "Generating final signal")
         graham_signal = generate_graham_output(ticker, {"ticker": analysis_data})
+        progress.update_status("ben_graham_agent", ticker, "Done")
         return ticker, graham_signal
 
     except Exception as e:
         logger.exception(f"Error analyzing {ticker}: {str(e)}")
+        progress.update_status("ben_graham_agent", ticker, "Error")
         return ticker, None
 
 def ben_graham_analyst(tickers: list[str]) -> dict[str, any]:
@@ -89,25 +100,55 @@ def ben_graham_analyst(tickers: list[str]) -> dict[str, any]:
     """
     graham_analysis = {}
 
-    # Use ThreadPoolExecutor for parallel processing
-    # Number of workers is min(32, len(tickers)) to avoid creating too many threads
-    with ThreadPoolExecutor(max_workers=min(32, len(tickers))) as executor:
-        # Submit all tasks
-        future_to_ticker = {
-            executor.submit(process_single_ticker, ticker): ticker
-            for ticker in tickers
-        }
+    # Track if we started the progress display (to avoid stopping if we didn't start)
+    # progress_started = False # No longer needed here
 
-        # Process completed tasks as they finish
-        for future in as_completed(future_to_ticker):
-            ticker = future_to_ticker[future]
-            try:
-                ticker, result = future.result()
-                if result is not None:
-                    graham_analysis[ticker] = result
-            except Exception as e:
-                logger.exception(f"Error processing {ticker}: {str(e)}")
-                continue
+    # Start progress tracking - REMOVED (handled by main.py via wrapper)
+    # try:
+    #     logger.info("Starting progress tracking in Ben Graham analyst")
+    #     progress.start()
+    #     progress.update_status("ben_graham_agent", status="Starting analysis")
+    #     progress_started = True
+    #     logger.info("Progress tracking started successfully")
+    # except Exception as e:
+    #     logger.error(f"Error starting progress tracking: {str(e)}")
+    #     traceback.print_exc()
+
+    try:
+        # Use ThreadPoolExecutor for parallel processing
+        # Number of workers is min(32, len(tickers)) to avoid creating too many threads
+        with ThreadPoolExecutor(max_workers=min(32, len(tickers))) as executor:
+            # Submit all tasks
+            future_to_ticker = {
+                executor.submit(process_single_ticker, ticker): ticker
+                for ticker in tickers
+            }
+
+            # Process completed tasks as they finish
+            # Progress updates for individual tickers happen inside process_single_ticker
+            for future in as_completed(future_to_ticker):
+                ticker = future_to_ticker[future]
+                try:
+                    ticker, result = future.result()
+                    if result is not None:
+                        graham_analysis[ticker] = result
+                except Exception as e:
+                    logger.exception(f"Error processing {ticker}: {str(e)}")
+                    # The error status is set within process_single_ticker
+                    # try:
+                    #     progress.update_status("ben_graham_agent", ticker, "Error")
+                    # except Exception as pe:
+                    #     logger.error(f"Error updating progress for {ticker}: {str(pe)}")
+                    continue
+    except Exception as e:
+        logger.exception(f"Error in Ben Graham analyst thread pool: {str(e)}")
+    # finally:
+        # Update final status - REMOVED (handled by wrapper in main.py)
+        # try:
+        #     logger.info("Updating final status in Ben Graham analyst")
+        #     progress.update_status("ben_graham_agent", status="Analysis complete")
+        # except Exception as e:
+        #     logger.error(f"Error updating final progress status: {str(e)}")
 
     return graham_analysis
 

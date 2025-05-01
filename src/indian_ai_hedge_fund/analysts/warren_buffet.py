@@ -7,6 +7,8 @@ from indian_ai_hedge_fund.llm.models import llm
 from indian_ai_hedge_fund.prompts.warrent_buffet import SYSTEM_PROMPT, HUMAN_PROMPT
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from langchain_core.prompts import ChatPromptTemplate
+from indian_ai_hedge_fund.utils.progress import progress
+import traceback
 
 class WarrenBuffettSignal(BaseModel):
     signal: Literal["bullish", "bearish", "neutral"]
@@ -25,7 +27,10 @@ def process_single_ticker(ticker: str) -> tuple[str, dict[str, any]]:
     """
     try:
         logger.info(f"Analyzing {ticker}")
+        progress.update_status("warren_buffett_agent", ticker, "Analyzing")
+
         logger.info(f"Fetching financial metrics for {ticker}")
+        progress.update_status("warren_buffett_agent", ticker, "Fetching metrics")
         metrics = get_latest_financial_metrics(ticker)
         historical_metrics = get_historical_financial_metrics(ticker, periods=5)
         logger.info(f"Finished fetching financial metrics for {ticker}")
@@ -34,33 +39,39 @@ def process_single_ticker(ticker: str) -> tuple[str, dict[str, any]]:
         logger.debug(f"Historical metrics: {historical_metrics}")
 
         logger.info(f"Getting market cap for {ticker}")
+        progress.update_status("warren_buffett_agent", ticker, "Calculating market cap")
         market_cap = metrics.market_cap
 
         logger.info(f"Analyzing fundamentals for {ticker}")
+        progress.update_status("warren_buffett_agent", ticker, "Analyzing fundamentals")
         fundamental_analysis = analyze_fundamentals(metrics)
         logger.info(f"Finished analyzing fundamentals for {ticker}")
 
         logger.debug(f"Fundamental analysis: {fundamental_analysis}")
 
         logger.info(f"Analyzing consistency for {ticker}")
+        progress.update_status("warren_buffett_agent", ticker, "Analyzing consistency")
         consistency_analysis = analyze_consistency(historical_metrics)
         logger.info(f"Finished analyzing consistency for {ticker}")
 
         logger.debug(f"Consistency analysis: {consistency_analysis}")
 
         logger.info(f"Analyzing moat for {ticker}")
+        progress.update_status("warren_buffett_agent", ticker, "Analyzing moat")
         moat_analysis = analyze_moat(historical_metrics)
         logger.info(f"Finished analyzing moat for {ticker}")
 
         logger.debug(f"Moat Analysis: {moat_analysis}")
 
         logger.info(f"Analyzing management quality for {ticker}")
+        progress.update_status("warren_buffett_agent", ticker, "Analyzing management")
         mgmt_analysis = analyze_management_quality(metrics)
         logger.info(f"Finished analyzing management quality for {ticker}")
 
         logger.debug(f"Management Quality: {mgmt_analysis}")
 
         logger.info(f"Calculating intrinsic value for {ticker}")
+        progress.update_status("warren_buffett_agent", ticker, "Calculating intrinsic value")
         intrinsic_value_analysis = calculate_intrinsic_value(metrics)
         logger.info(f"Finished calculating intrinsic value for {ticker}")
 
@@ -101,13 +112,16 @@ def process_single_ticker(ticker: str) -> tuple[str, dict[str, any]]:
 
         logger.info(f"Analysis Data for {ticker}: {analysis_data}")
 
+        progress.update_status("warren_buffett_agent", ticker, "Generating final signal")
         buffett_signal = generate_buffett_output(ticker, analysis_data)
         logger.info(f"Buffett analysis for {ticker}: {buffett_signal}")
 
+        progress.update_status("warren_buffett_agent", ticker, "Done")
         return ticker, buffett_signal
 
     except Exception as e:
         logger.exception(f"Error analyzing {ticker}: {str(e)}")
+        progress.update_status("warren_buffett_agent", ticker, "Error")
         return ticker, None
 
 def warren_buffett_analyst(tickers: list[str]) -> dict[str, any]:
@@ -122,25 +136,55 @@ def warren_buffett_analyst(tickers: list[str]) -> dict[str, any]:
     """
     buffett_analysis = {}
 
-    # Use ThreadPoolExecutor for parallel processing
-    # Number of workers is min(32, len(tickers)) to avoid creating too many threads
-    with ThreadPoolExecutor(max_workers=min(32, len(tickers))) as executor:
-        # Submit all tasks
-        future_to_ticker = {
-            executor.submit(process_single_ticker, ticker): ticker
-            for ticker in tickers
-        }
+    # Track if we started the progress display (to avoid stopping if we didn't start)
+    # progress_started = False # No longer needed here
 
-        # Process completed tasks as they finish
-        for future in as_completed(future_to_ticker):
-            ticker = future_to_ticker[future]
-            try:
-                ticker, result = future.result()
-                if result is not None:
-                    buffett_analysis[ticker] = result
-            except Exception as e:
-                logger.exception(f"Error processing {ticker}: {str(e)}")
-                continue
+    # Start progress tracking - REMOVED (handled by main.py via wrapper)
+    # try:
+    #     logger.info("Starting progress tracking in Warren Buffett analyst")
+    #     progress.start()
+    #     progress.update_status("warren_buffett_agent", status="Starting analysis")
+    #     progress_started = True
+    #     logger.info("Progress tracking started successfully")
+    # except Exception as e:
+    #     logger.error(f"Error starting progress tracking: {str(e)}")
+    #     traceback.print_exc()
+
+    try:
+        # Use ThreadPoolExecutor for parallel processing
+        # Number of workers is min(32, len(tickers)) to avoid creating too many threads
+        with ThreadPoolExecutor(max_workers=min(32, len(tickers))) as executor:
+            # Submit all tasks
+            future_to_ticker = {
+                executor.submit(process_single_ticker, ticker): ticker
+                for ticker in tickers
+            }
+
+            # Process completed tasks as they finish
+            # Progress updates for individual tickers happen inside process_single_ticker
+            for future in as_completed(future_to_ticker):
+                ticker = future_to_ticker[future]
+                try:
+                    ticker, result = future.result()
+                    if result is not None:
+                        buffett_analysis[ticker] = result
+                except Exception as e:
+                    logger.exception(f"Error processing {ticker}: {str(e)}")
+                    # The error status is set within process_single_ticker
+                    # try:
+                    #     progress.update_status("warren_buffett_agent", ticker, "Error")
+                    # except Exception as pe:
+                    #     logger.error(f"Error updating progress for {ticker}: {str(pe)}")
+                    continue
+    except Exception as e:
+        logger.exception(f"Error in Warren Buffett analyst thread pool: {str(e)}")
+    # finally:
+        # Update final status - REMOVED (handled by wrapper in main.py)
+        # try:
+        #     logger.info("Updating final status in Warren Buffett analyst")
+        #     progress.update_status("warren_buffett_agent", status="Analysis complete")
+        # except Exception as e:
+        #     logger.error(f"Error updating final progress status: {str(e)}")
 
     return buffett_analysis
 
