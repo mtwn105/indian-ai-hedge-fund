@@ -10,6 +10,7 @@ from langchain_core.prompts import ChatPromptTemplate
 import math
 from indian_ai_hedge_fund.utils.progress import progress
 import traceback
+from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
 
 class BenGrahamSignal(BaseModel):
     signal: Literal["bullish", "bearish", "neutral"]
@@ -333,24 +334,44 @@ def analyze_valuation_graham(metrics: FinancialMetrics, historical_metrics: list
 
     return {"score": score, "details": "; ".join(details)}
 
+# Apply retry decorator for LLM calls
+# Retry up to 3 times with exponential backoff (1s, 2s, 4s) max 10s wait.
+# Consider refining retry_on_exception to specific API errors (e.g., RateLimitError, APIError)
+# if the LLM library provides them.
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=10),
+    # retry=retry_if_exception_type(Exception) # Default retries on any Exception
+)
 def generate_graham_output(
     ticker: str,
     analysis_data: dict[str, any]
 ) -> BenGrahamSignal:
     """Get investment decision from LLM with Graham's principles"""
-    template = ChatPromptTemplate.from_messages([
-        (
-            "system",
-            SYSTEM_PROMPT,
-        ),
-        (
-            "human",
-            HUMAN_PROMPT,
-        ),
-    ])
+    logger.info(f"Generating Graham output for {ticker}") # Add logging
+    try:
+        template = ChatPromptTemplate.from_messages([
+            (
+                "system",
+                SYSTEM_PROMPT,
+            ),
+            (
+                "human",
+                HUMAN_PROMPT,
+            ),
+        ])
 
-    prompt = template.invoke({"analysis_data": json.dumps(analysis_data, indent=2), "ticker": ticker})
+        prompt = template.invoke({"analysis_data": json.dumps(analysis_data, indent=2), "ticker": ticker})
 
-    response = llm.with_structured_output(BenGrahamSignal).invoke(prompt)
-
-    return response
+        response = llm.with_structured_output(BenGrahamSignal).invoke(prompt)
+        logger.info(f"Successfully generated Graham output for {ticker}") # Add logging
+        return response
+    except RetryError as e:
+        # Log the final error after retries are exhausted
+        logger.error(f"LLM call failed for {ticker} after multiple retries: {e}")
+        # Reraise the last exception captured by tenacity
+        raise e.last_attempt.exception()
+    except Exception as e:
+        # Log and re-raise other unexpected errors during the call
+        logger.error(f"Unexpected error during LLM call for {ticker}: {e}")
+        raise e
