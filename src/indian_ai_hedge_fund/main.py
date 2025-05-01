@@ -2,8 +2,6 @@ from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.tools import StructuredTool
 from langgraph.prebuilt import create_react_agent
-from indian_ai_hedge_fund.analysts.warren_buffet import warren_buffett_analyst
-from indian_ai_hedge_fund.analysts.ben_graham import ben_graham_analyst
 from rich.markdown import Markdown
 from rich.console import Console
 import questionary
@@ -16,6 +14,7 @@ from indian_ai_hedge_fund.utils.logging_config import logger
 from indian_ai_hedge_fund.utils.progress import progress
 import traceback
 from functools import wraps
+from indian_ai_hedge_fund.analysts.config import get_analysts
 
 # Define argument schemas
 class GetHoldingsArgs(BaseModel):
@@ -52,17 +51,7 @@ def wrap_with_progress(func: Callable, agent_name: str) -> Callable:
             raise e # Re-raise the exception so the agent knows it failed
     return wrapper
 
-def get_analysts() -> Dict[str, Tuple[str, Callable]]:
-    """Get available analysts with their display names and functions"""
-    logger.debug("Getting available analysts")
-    analysts = {
-        'Warren Buffett': ('Warren Buffett', warren_buffett_analyst),
-        'Benjamin Graham': ('Benjamin Graham', ben_graham_analyst),
-    }
-    logger.debug(f"Found {len(analysts)} analysts")
-    return analysts
-
-def select_analyst() -> Tuple[str, Callable]:
+def select_analyst() -> List[Tuple[str, Callable]]:
     """Interactive analyst selection using questionary"""
     logger.info("Starting analyst selection process")
     analysts = get_analysts()
@@ -71,49 +60,51 @@ def select_analyst() -> Tuple[str, Callable]:
     choices = [
         questionary.Choice(
             title=name,
-            value=name
+            value=name # Use name as the value to retrieve from the dict later
         )
         for name in analysts.keys()
     ]
 
-    # Show selection prompt
-    selected = questionary.select(
-        "Select your AI analyst",
+    # Show checkbox prompt for multiple selections
+    selected_names = questionary.checkbox( # Changed from select to checkbox
+        "Select your AI analysts (use spacebar to select, enter to confirm)",
         choices=choices,
-        use_indicator=True,
+        # use_indicator=True, # Checkbox doesn't use indicator in the same way
         style=questionary.Style([
-            ('qmark', 'fg:yellow bold'),      # The '?' symbol
-            ('question', 'bold'),             # The question text
-            ('answer', 'fg:green bold'),      # Selected answer
-            ('pointer', 'fg:yellow bold'),    # Selection pointer
-            ('highlighted', 'fg:yellow bold') # Highlighted choice
+            ('qmark', 'fg:yellow bold'),
+            ('question', 'bold'),
+            ('answer', 'fg:green bold'),
+            # ('pointer', 'fg:yellow bold'), # Different style for checkbox
+            ('highlighted', 'fg:yellow bold'),
+            ('selected', 'fg:cyan bold') # Style for selected items
         ])
     ).ask()
 
-    if not selected:
+    if not selected_names: # Check if the list is empty
         logger.error("No analyst was selected")
         raise ValueError("No analyst selected")
 
-    logger.info(f"Selected analyst: {selected}")
-    return analysts[selected]
+    # Retrieve the (name, function) tuples for selected analysts
+    selected_analysts = [analysts[name] for name in selected_names]
+
+    logger.info(f"Selected analysts: {[name for name, _ in selected_analysts]}")
+    return selected_analysts # Return the list of selected analyst tuples
 
 def main():
     console = Console()
     logger.info("Starting Indian AI Hedge Fund application")
 
     try:
-        # Get analyst selection
-        selected_name, selected_analyst = select_analyst()
+        # Get analyst selection (now returns a list)
+        selected_analysts = select_analyst() # Returns List[Tuple[str, Callable]]
 
-        console.print(f"\n[bold green]Selected analyst:[/bold green] {selected_name}\n")
-
-        # Convert analyst name to tool name format
-        tool_analyst_name = f"{selected_name.lower().replace(' ', '_')}_agent"
-        logger.debug(f"Converted analyst name to tool format: {tool_analyst_name}")
+        selected_names_str = ", ".join([name for name, _ in selected_analysts])
+        console.print(f"\n[bold green]Selected analysts:[/bold green] {selected_names_str}\n")
 
         # Create LangChain tools with progress tracking wrappers
         logger.debug("Creating LangChain tools")
         portfolio_agent_name = "portfolio_management"
+        # Start with the holdings tool
         tools = [
             StructuredTool(
                 name="get_holdings",
@@ -121,16 +112,24 @@ def main():
                 func=wrap_with_progress(get_holdings, portfolio_agent_name),
                 args_schema=GetHoldingsArgs,
                 return_direct=False
-            ),
-            StructuredTool(
-                name=f"{tool_analyst_name}_analyst", # Tool name for the agent
-                description=f"Analyzes stocks using {selected_name}'s principles and LLM reasoning. Takes a list of stock tickers as input.",
-                func=wrap_with_progress(selected_analyst, tool_analyst_name), # Pass the specific agent name
-                args_schema=AnalystArgs,
-                return_direct=False
             )
         ]
 
+        # Add a tool for each selected analyst
+        for name, analyst_func in selected_analysts:
+            tool_analyst_name = f"{name.lower().replace(' ', '_')}_analyst"
+            logger.debug(f"Creating tool for analyst: {name} ({tool_analyst_name})")
+            tools.append(
+                StructuredTool(
+                    name=tool_analyst_name,
+                    description=f"Analyzes stocks using {name}'s principles and LLM reasoning. Takes a list of stock tickers as input.",
+                    func=wrap_with_progress(analyst_func, tool_analyst_name), # Pass specific tool name
+                    args_schema=AnalystArgs,
+                    return_direct=False
+                )
+            )
+
+        logger.debug(f"Total tools created: {len(tools)}")
         logger.debug("Setting up LangChain prompt")
 
         # Create the LangGraph agent
