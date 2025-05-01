@@ -16,7 +16,7 @@ This project implements an AI-powered hedge fund system focused on the Indian st
 ## Prerequisites
 
 - Python 3.8+
-- pip package manager
+- Poetry (https://python-poetry.org/)
 - Access to Indian stock market data APIs
 - Required API keys and credentials
 
@@ -29,10 +29,10 @@ git clone https://github.com/yourusername/indian-ai-hedge-fund.git
 cd indian-ai-hedge-fund
 ```
 
-2. Install dependencies:
+2. Install dependencies using Poetry:
 
 ```bash
-pip install -r requirements.txt
+poetry install
 ```
 
 ## Configuration
@@ -47,10 +47,10 @@ SECRET_KEY=your_secret_key
 
 ## Usage
 
-1. Start the system:
+1. Start the system using Poetry:
 
 ```bash
-python main.py
+poetry run python src/indian_ai_hedge_fund/main.py
 ```
 
 2. Access the dashboard at `http://localhost:3000`
@@ -60,13 +60,21 @@ python main.py
 ```
 indian-ai-hedge-fund/
 ├── src/
-│   ├── data/          # Data processing and management
-│   ├── models/        # AI/ML models
-│   ├── strategies/    # Trading strategies
-│   └── utils/         # Utility functions
-├── tests/             # Unit tests
-├── docs/              # Documentation
-└── requirements.txt   # Project dependencies
+│   └── indian_ai_hedge_fund/ # Main application source code
+│       ├── analysts/         # AI analyst agents
+│       ├── llm/              # Language model integrations
+│       ├── prompts/          # Prompt templates
+│       ├── tools/            # Tools for agents
+│       └── utils/            # Utility functions
+│       └── main.py           # Main entry point
+├── tests/                    # Unit and integration tests
+├── docs/                     # Documentation (if any)
+├── logs/                     # Log files
+├── .env                      # Environment variables (needs creation)
+├── .gitignore                # Git ignore rules
+├── README.md                 # This file
+├── pyproject.toml            # Project metadata and dependencies (Poetry)
+└── poetry.lock               # Exact dependency versions (Poetry)
 ```
 
 ## Contributing
