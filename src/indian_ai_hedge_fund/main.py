@@ -1,6 +1,7 @@
 from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.tools import StructuredTool
+from langgraph.prebuilt import create_react_agent
 from indian_ai_hedge_fund.analysts.warren_buffet import warren_buffett_analyst
 from indian_ai_hedge_fund.analysts.ben_graham import ben_graham_analyst
 from rich.markdown import Markdown
@@ -99,36 +100,28 @@ def main():
         ]
 
         logger.debug("Setting up LangChain prompt")
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", SYSTEM_PROMPT),
-            ("human", HUMAN_PROMPT),
-            MessagesPlaceholder(variable_name="agent_scratchpad"),
-        ])
 
-        # Create the LangChain agent
-        logger.info("Creating LangChain agent")
-        agent = create_openai_tools_agent(
-            llm=llm,
+        # Create the LangGraph agent
+        logger.info("Creating LangGraph agent")
+        agent = create_react_agent(
+            model=llm,
             tools=tools,
-            prompt=prompt
-        )
-
-        # Create the agent executor
-        logger.debug("Creating agent executor")
-        agent_executor = AgentExecutor(
-            agent=agent,
-            tools=tools,
-            verbose=True,
-            max_iterations=50,
-            early_stopping_method="force",
-            handle_parsing_errors=True
+            prompt=SYSTEM_PROMPT
         )
 
         # Run the analysis
-        logger.info("Starting portfolio analysis")
-        response = agent_executor.invoke({"input": "analyze my portfolio"})
-        console.print(Markdown(response["output"]))
-        logger.info("Portfolio analysis completed successfully")
+        console.print("\n[bold blue]Starting Portfolio Analysis...[/bold blue]")
+        console.print("[dim]This may take a few minutes[/dim]\n")
+
+        with console.status("[bold green]Analyzing portfolio...", spinner="dots"):
+            response = agent.invoke({"messages": [("user", "analyze my portfolio")]})
+
+        console.print("\n[bold green]✓ Portfolio analysis completed successfully![/bold green]\n")
+
+        console.print("[bold blue]Analysis Results:[/bold blue]")
+        console.print("─" * 80)
+        console.print(Markdown(response["messages"][-1].content))
+        console.print("─" * 80 + "\n")
 
     except KeyboardInterrupt:
         logger.warning("Operation cancelled by user")
