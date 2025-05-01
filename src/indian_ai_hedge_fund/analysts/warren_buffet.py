@@ -10,6 +10,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from indian_ai_hedge_fund.utils.progress import progress
 import traceback
 from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
+from tenacity import RetryCallState
 
 class WarrenBuffettSignal(BaseModel):
     signal: Literal["bullish", "bearish", "neutral"]
@@ -137,24 +138,10 @@ def warren_buffett_analyst(tickers: list[str]) -> dict[str, any]:
     """
     buffett_analysis = {}
 
-    # Track if we started the progress display (to avoid stopping if we didn't start)
-    # progress_started = False # No longer needed here
-
-    # Start progress tracking - REMOVED (handled by main.py via wrapper)
-    # try:
-    #     logger.info("Starting progress tracking in Warren Buffett analyst")
-    #     progress.start()
-    #     progress.update_status("warren_buffett_agent", status="Starting analysis")
-    #     progress_started = True
-    #     logger.info("Progress tracking started successfully")
-    # except Exception as e:
-    #     logger.error(f"Error starting progress tracking: {str(e)}")
-    #     traceback.print_exc()
-
     try:
         # Use ThreadPoolExecutor for parallel processing
         # Number of workers is min(32, len(tickers)) to avoid creating too many threads
-        with ThreadPoolExecutor(max_workers=min(32, len(tickers))) as executor:
+        with ThreadPoolExecutor(max_workers=min(16, len(tickers))) as executor:
             # Submit all tasks
             future_to_ticker = {
                 executor.submit(process_single_ticker, ticker): ticker
@@ -439,13 +426,22 @@ def calculate_intrinsic_value(metrics: FinancialMetrics) -> dict[str, any]:
         "details": ["Intrinsic value calculated using DCF model with owner earnings"],
     }
 
+# Define the callback function for logging and status updates during retries
+def log_and_update_status_before_retry(retry_state: RetryCallState):
+    """Log retry attempts and update progress status."""
+    ticker = retry_state.args[0] if retry_state.args else "unknown ticker"
+    attempt_num = retry_state.attempt_number
+    logger.warning(f"LLM call for {ticker} failed (attempt {attempt_num}), retrying...")
+    progress.update_status("warren_buffett_agent", ticker, f"Retrying LLM ({attempt_num})")
+
 # Apply retry decorator for LLM calls
-# Retry up to 3 times with exponential backoff (1s, 2s, 4s) max 10s wait.
+# Retry up to 5 times with exponential backoff (1s, 2s, 4s, 8s, 16s) max 10s wait.
 # Consider refining retry_on_exception to specific API errors (e.g., RateLimitError, APIError)
 # if the LLM library provides them.
 @retry(
-    stop=stop_after_attempt(3),
+    stop=stop_after_attempt(5), # Increased retries to 5
     wait=wait_exponential(multiplier=1, min=1, max=10),
+    before_sleep=log_and_update_status_before_retry, # Add callback before sleep
     # retry=retry_if_exception_type(Exception) # Default retries on any Exception
 )
 def generate_buffett_output(
