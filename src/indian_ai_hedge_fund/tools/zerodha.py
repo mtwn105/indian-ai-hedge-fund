@@ -166,7 +166,7 @@ def place_order(exchange: str, tradingsymbol: str, transaction_type: str,
         raise
 
 
-def get_historical_data(instrument_token: int, from_date: str, to_date: str, interval: str, continuous: bool = False, oi: bool = False) -> list:
+def get_historical_data(instrument_token: int, from_date: str, to_date: str, interval: str, continuous: bool = False, oi: bool = False) -> list[list[any]]:
     """Fetch historical candle data for a given instrument.
 
     Provides archived data (up to date as of the time of access) for instruments
