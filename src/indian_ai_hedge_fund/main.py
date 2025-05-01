@@ -114,7 +114,7 @@ def main():
         console.print("[dim]This may take a few minutes[/dim]\n")
 
         with console.status("[bold green]Analyzing portfolio...", spinner="dots"):
-            response = agent.invoke({"messages": [("user", "analyze my portfolio")]})
+            response = agent.invoke({"messages": [("user", HUMAN_PROMPT)]})
 
         console.print("\n[bold green]✓ Portfolio analysis completed successfully![/bold green]\n")
 
