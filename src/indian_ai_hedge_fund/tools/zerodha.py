@@ -89,6 +89,41 @@ def get_holdings() -> str:
     return holdings
 
 
+def get_instruments(exchange: str = None) -> list:
+    """Fetch the list of tradable instruments available on Zerodha.
+
+    Retrieves a list of all available contracts for trading, including details like:
+    - instrument_token
+    - exchange_token
+    - tradingsymbol
+    - name
+    - last_price
+    - expiry
+    - strike
+    - tick_size
+    - lot_size
+    - instrument_type
+    - segment
+    - exchange
+
+    Args:
+        exchange (str, optional): Filter instruments by exchange (e.g., "NSE", "BSE", "NFO").
+                                  If None, fetches instruments for all exchanges. Defaults to None.
+
+    Returns:
+        list: A list of dictionaries, where each dictionary represents an instrument.
+    """
+    logger.info(f"Entering get_instruments with exchange: {exchange}")
+    try:
+        instruments = kite.instruments(exchange=exchange)
+        logger.info(f"Successfully fetched {len(instruments)} instruments for exchange: {exchange or 'all'}.")
+        logger.info("Exiting get_instruments")
+        return instruments
+    except Exception as e:
+        logger.exception(f"Error fetching instruments for exchange {exchange or 'all'}: {str(e)}")
+        raise
+
+
 def place_order(exchange: str, tradingsymbol: str, transaction_type: str,
                 quantity: int, price: float, product: str = "CNC",
                 order_type: str = "MARKET", validity: str = "DAY", variety: str = "regular") -> str:
