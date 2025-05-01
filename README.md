@@ -2,58 +2,77 @@
 
 ## Overview
 
-This project implements an AI-powered hedge fund system focused on the Indian stock market. It uses machine learning algorithms and financial data analysis to make informed trading decisions and portfolio management strategies.
+This project implements a command-line AI-powered portfolio analysis tool focused on the Indian stock market, specifically using Zerodha Kite integration. Users can select different AI "analysts" (powered by LLMs like OpenAI or Google AI via Langchain/LangGraph) to review their current holdings. The tool fetches holdings via the Kite Connect API and applies the chosen analysis strategies, presenting the results in the terminal.
 
 ## Features
 
-- Real-time market data analysis
-- AI-driven trading strategies
-- Portfolio optimization
-- Risk management system
-- Performance analytics dashboard
-- Automated trading execution
+- Connects to Zerodha Kite to fetch user portfolio holdings.
+- Interactive selection of different AI analyst agents for portfolio review.
+- Utilizes Large Language Models (OpenAI, Google AI) via Langchain and LangGraph for analysis.
+- Extensible analyst framework (add new analysis strategies in `src/indian_ai_hedge_fund/analysts`).
+- Structured tool usage for API calls (e.g., fetching holdings).
+- Rich terminal output for progress and results.
+- Configuration via `.env` file.
 
 ## Prerequisites
 
-- Python 3.8+
+- Python >= 3.11
 - Poetry (https://python-poetry.org/)
-- Access to Indian stock market data APIs
-- Required API keys and credentials
+- A Zerodha Kite developer account and API credentials.
+- API Keys for desired Large Language Models (e.g., OpenAI, Google AI).
 
 ## Installation
 
-1. Clone the repository:
+1.  Clone the repository:
 
-```bash
-git clone https://github.com/yourusername/indian-ai-hedge-fund.git
-cd indian-ai-hedge-fund
-```
+    ```bash
+    git clone https://github.com/yourusername/indian-ai-hedge-fund.git
+    cd indian-ai-hedge-fund
+    ```
 
-2. Install dependencies using Poetry:
+2.  Install dependencies using Poetry:
 
-```bash
-poetry install
-```
+    ```bash
+    poetry install
+    ```
 
 ## Configuration
 
-1. Create a `.env` file in the root directory
-2. Add your API keys and configuration:
+1.  Create a `.env` file in the root directory by copying `.env.example` (if it exists) or creating it manually.
+2.  Add your API keys and configuration:
 
-```
-API_KEY=your_api_key
-SECRET_KEY=your_secret_key
-```
+    ```dotenv
+    # Zerodha Kite API Credentials
+    KITE_API_KEY="your_kite_api_key"
+    KITE_API_SECRET="your_kite_secret"
+    # Obtain this using the generate_token script (see below)
+    KITE_ACCESS_TOKEN="your_kite_access_token"
+
+    # LLM API Keys (add the ones you intend to use)
+    # OPENAI_API_KEY="your_openai_api_key"
+    # GOOGLE_API_KEY="your_google_api_key"
+
+    # Optional: Configure Logging
+    # LOG_LEVEL="INFO" # e.g., DEBUG, INFO, WARNING, ERROR
+    ```
+
+3.  **Generating Kite Access Token**: The `KITE_ACCESS_TOKEN` is short-lived. You may need to generate it daily using Zerodha's process. This project might include a helper script (check `src/indian_ai_hedge_fund/utils/generate_token.py` if available) or you might need to run a manual flow. Example using a potential script:
+    ```bash
+    poetry run python src/indian_ai_hedge_fund/utils/generate_token.py
+    ```
+    Follow the instructions (likely involving logging into Kite and redirecting) and copy the obtained access token into your `.env` file.
 
 ## Usage
 
-1. Start the system using Poetry:
+1.  Ensure your `.env` file is correctly configured with API keys and a valid `KITE_ACCESS_TOKEN`.
+2.  Run the main application:
 
-```bash
-poetry run python src/indian_ai_hedge_fund/main.py
-```
+    ```bash
+    poetry run python src/indian_ai_hedge_fund/main.py
+    ```
 
-2. Access the dashboard at `http://localhost:3000`
+3.  Follow the interactive prompts in your terminal to select the desired AI analysts.
+4.  The tool will fetch holdings, perform analysis, and display results in the terminal.
 
 ## Project Structure
 
@@ -61,16 +80,17 @@ poetry run python src/indian_ai_hedge_fund/main.py
 indian-ai-hedge-fund/
 ├── src/
 │   └── indian_ai_hedge_fund/ # Main application source code
-│       ├── analysts/         # AI analyst agents
-│       ├── llm/              # Language model integrations
-│       ├── prompts/          # Prompt templates
-│       ├── tools/            # Tools for agents
-│       └── utils/            # Utility functions
-│       └── main.py           # Main entry point
-├── tests/                    # Unit and integration tests
+│       ├── analysts/         # Defines different AI analyst agents and their logic
+│       ├── llm/              # Configuration and abstraction for LLMs (OpenAI, Google AI)
+│       ├── prompts/          # Prompt templates for Langchain/LangGraph agents
+│       ├── tools/            # Langchain tools (e.g., Zerodha API interaction)
+│       ├── utils/            # Utility functions (logging, progress, token generation)
+│       └── main.py           # Main CLI application entry point
+├── tests/                    # Unit and integration tests (if any)
 ├── docs/                     # Documentation (if any)
-├── logs/                     # Log files
-├── .env                      # Environment variables (needs creation)
+├── logs/                     # Log files generated by the application
+├── .env.example              # Example environment variables file (optional)
+├── .env                      # Local environment variables (API keys, etc. - **DO NOT COMMIT**)
 ├── .gitignore                # Git ignore rules
 ├── README.md                 # This file
 ├── pyproject.toml            # Project metadata and dependencies (Poetry)
