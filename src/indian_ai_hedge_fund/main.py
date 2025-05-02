@@ -152,7 +152,7 @@ def main():
         try:
             logger.info("Running LangGraph agent")
             # Agent execution will trigger the wrapped tools and thus progress updates
-            response = agent.invoke({"messages": [("user", HUMAN_PROMPT)]})
+            response = agent.invoke({"messages": [("user", HUMAN_PROMPT)]},debug=True)
             logger.info("LangGraph agent completed successfully")
             progress.update_status(portfolio_agent_name, status="Finished analysis")
         except Exception as e:
