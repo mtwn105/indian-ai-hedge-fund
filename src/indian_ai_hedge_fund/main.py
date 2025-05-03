@@ -1,6 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate
 from rich.markdown import Markdown
 from rich.console import Console
+from rich.table import Table
 import questionary
 from indian_ai_hedge_fund.tools.zerodha import get_holdings
 from typing import List, Dict, Tuple, Callable, Any
@@ -165,6 +166,55 @@ def main():
                     logger.error(error_msg)
                     console.print(f"[red bold]Error running analyst {name}:[/red bold] {str(e)}")
                     analyst_reports[name] = f"Error: Failed to generate report - {e}" # Store error message
+
+        # Display individual analyst reports before synthesis
+        if analyst_reports:
+            console.print("\n" + "─" * 80)
+            console.print("[bold cyan]Individual Analyst Reports:[/bold cyan]")
+            for name, report in analyst_reports.items():
+                console.print(f"\n[bold yellow]Report from {name}:[/bold yellow]")
+                # Check if the report is a dictionary (like from Technical Analyst)
+                if isinstance(report, dict):
+                    # Create a table for dictionary reports
+                    table = Table(show_header=True, header_style="bold magenta", show_lines=True)
+                    table.add_column("Ticker", style="dim", width=12)
+                    table.add_column("Signal")
+                    table.add_column("Confidence (%)", justify="right")
+                    table.add_column("Reasoning")
+
+                    # Define signal colors
+                    signal_colors = {
+                        "bullish": "green",
+                        "bearish": "red",
+                        "neutral": "yellow"
+                    }
+
+                    for ticker, analysis in report.items():
+                        # Assuming analysis is an object with .signal, .confidence, and .reasoning attributes
+                        signal = getattr(analysis, 'signal', 'N/A')
+                        confidence = getattr(analysis, 'confidence', 'N/A')
+                        reasoning = getattr(analysis, 'reasoning', 'N/A')
+
+                        # Get color for signal, default to white if signal not in map
+                        signal_color = signal_colors.get(str(signal).lower(), "white")
+
+                        table.add_row(
+                            f"[bold]{ticker}[/bold]", # Make ticker bold
+                            f"[{signal_color}]{str(signal)}[/{signal_color}]", # Color signal
+                            f"{confidence:.1f}" if isinstance(confidence, (float, int)) else str(confidence),
+                            str(reasoning)
+                        )
+                    console.print(table)
+                elif isinstance(report, str):
+                     # Use Markdown for potentially formatted string reports, handles plain text too
+                     console.print(Markdown(report))
+                else:
+                     # Handle other non-string/non-dict reports if necessary
+                     # For now, just convert to string for display
+                     console.print(str(report))
+            console.print("─" * 80 + "\n")
+        else:
+            console.print("\n[yellow]No individual analyst reports to display.[/yellow]\n")
 
         # 5. Prepare data for LLM
         logger.info("Preparing final prompt for LLM synthesis")
