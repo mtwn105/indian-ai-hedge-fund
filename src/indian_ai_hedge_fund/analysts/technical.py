@@ -8,9 +8,10 @@ from indian_ai_hedge_fund.utils.progress import progress
 from datetime import datetime, timedelta
 from indian_ai_hedge_fund.utils.utils import prices_to_df
 from indian_ai_hedge_fund.utils.logging_config import logger
+from indian_ai_hedge_fund.analysts.models import AnalystReport
 
 ##### Technical Analyst #####
-def technical_analyst(tickers: list[str]) -> dict[str, any]:
+def technical_analyst(tickers: list[str]) -> dict[str, AnalystReport]:
     """
     Sophisticated technical analysis system that combines multiple trading strategies for multiple tickers:
     1. Trend Following
@@ -103,37 +104,51 @@ def technical_analyst(tickers: list[str]) -> dict[str, any]:
         )
 
         # Generate detailed analysis report for this ticker
-        technical_analysis[ticker] = {
-            "signal": combined_signal["signal"],
-            "confidence": round(combined_signal["confidence"] * 100),
-            "strategy_signals": {
-                "trend_following": {
-                    "signal": trend_signals["signal"],
-                    "confidence": round(trend_signals["confidence"] * 100),
-                    "metrics": normalize_pandas(trend_signals["metrics"]),
-                },
-                "mean_reversion": {
-                    "signal": mean_reversion_signals["signal"],
-                    "confidence": round(mean_reversion_signals["confidence"] * 100),
-                    "metrics": normalize_pandas(mean_reversion_signals["metrics"]),
-                },
-                "momentum": {
-                    "signal": momentum_signals["signal"],
-                    "confidence": round(momentum_signals["confidence"] * 100),
-                    "metrics": normalize_pandas(momentum_signals["metrics"]),
-                },
-                "volatility": {
-                    "signal": volatility_signals["signal"],
-                    "confidence": round(volatility_signals["confidence"] * 100),
-                    "metrics": normalize_pandas(volatility_signals["metrics"]),
-                },
-                "statistical_arbitrage": {
-                    "signal": stat_arb_signals["signal"],
-                    "confidence": round(stat_arb_signals["confidence"] * 100),
-                    "metrics": normalize_pandas(stat_arb_signals["metrics"]),
-                },
-            },
-        }
+        technical_analysis[ticker] = AnalystReport(
+            signal=combined_signal["signal"],
+            confidence=round(combined_signal["confidence"] * 100),
+            reasoning=(
+                f"Technical Analysis for {ticker}:\n"
+                f"- Trend Following ({strategy_weights['trend']*100}%): {trend_signals['signal']} "
+                f"with {round(trend_signals['confidence']*100)}% confidence\n"
+                f"- Mean Reversion ({strategy_weights['mean_reversion']*100}%): {mean_reversion_signals['signal']} "
+                f"with {round(mean_reversion_signals['confidence']*100)}% confidence\n"
+                f"- Momentum ({strategy_weights['momentum']*100}%): {momentum_signals['signal']} "
+                f"with {round(momentum_signals['confidence']*100)}% confidence\n"
+                f"- Volatility ({strategy_weights['volatility']*100}%): {volatility_signals['signal']} "
+                f"with {round(volatility_signals['confidence']*100)}% confidence\n"
+                f"- Statistical Arbitrage ({strategy_weights['stat_arb']*100}%): {stat_arb_signals['signal']} "
+                f"with {round(stat_arb_signals['confidence']*100)}% confidence\n\n"
+                f"Final Analysis: {combined_signal['signal']} with overall confidence of {round(combined_signal['confidence']*100)}%"
+            ),
+            # "strategy_signals": {
+            #     "trend_following": {
+            #         "signal": trend_signals["signal"],
+            #         "confidence": round(trend_signals["confidence"] * 100),
+            #         "metrics": normalize_pandas(trend_signals["metrics"]),
+            #     },
+            #     "mean_reversion": {
+            #         "signal": mean_reversion_signals["signal"],
+            #         "confidence": round(mean_reversion_signals["confidence"] * 100),
+            #         "metrics": normalize_pandas(mean_reversion_signals["metrics"]),
+            #     },
+            #     "momentum": {
+            #         "signal": momentum_signals["signal"],
+            #         "confidence": round(momentum_signals["confidence"] * 100),
+            #         "metrics": normalize_pandas(momentum_signals["metrics"]),
+            #     },
+            #     "volatility": {
+            #         "signal": volatility_signals["signal"],
+            #         "confidence": round(volatility_signals["confidence"] * 100),
+            #         "metrics": normalize_pandas(volatility_signals["metrics"]),
+            #     },
+            #     "statistical_arbitrage": {
+            #         "signal": stat_arb_signals["signal"],
+            #         "confidence": round(stat_arb_signals["confidence"] * 100),
+            #         "metrics": normalize_pandas(stat_arb_signals["metrics"]),
+            #     },
+            # },
+        )
         progress.update_status("technical_analyst_agent", ticker, "Done")
 
     logger.info(f"Technical analysis: {technical_analysis}")

@@ -8,14 +8,9 @@ from indian_ai_hedge_fund.prompts.warrent_buffet import SYSTEM_PROMPT, HUMAN_PRO
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from langchain_core.prompts import ChatPromptTemplate
 from indian_ai_hedge_fund.utils.progress import progress
-import traceback
 from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
 from tenacity import RetryCallState
-
-class WarrenBuffettSignal(BaseModel):
-    signal: Literal["bullish", "bearish", "neutral"]
-    confidence: float
-    reasoning: str
+from indian_ai_hedge_fund.analysts.models import AnalystReport
 
 def process_single_ticker(ticker: str) -> tuple[str, dict[str, any]]:
     """
@@ -141,7 +136,7 @@ def warren_buffett_analyst(tickers: list[str]) -> dict[str, any]:
     try:
         # Use ThreadPoolExecutor for parallel processing
         # Number of workers is min(32, len(tickers)) to avoid creating too many threads
-        with ThreadPoolExecutor(max_workers=min(16, len(tickers))) as executor:
+        with ThreadPoolExecutor(max_workers=min(2, len(tickers))) as executor:
             # Submit all tasks
             future_to_ticker = {
                 executor.submit(process_single_ticker, ticker): ticker
@@ -447,7 +442,7 @@ def log_and_update_status_before_retry(retry_state: RetryCallState):
 def generate_buffett_output(
     ticker: str,
     analysis_data: dict[str, any]
-) -> WarrenBuffettSignal:
+) -> AnalystReport:
     """Get investment decision from LLM with Buffett's principles"""
     logger.info(f"Generating Buffett output for {ticker}") # Add logging
     try:
@@ -466,7 +461,7 @@ def generate_buffett_output(
 
         prompt = template.invoke({"analysis_data": json.dumps(analysis_data, indent=2), "ticker": ticker})
 
-        response = llm.with_structured_output(WarrenBuffettSignal).invoke(prompt)
+        response = llm.with_structured_output(AnalystReport).invoke(prompt)
         logger.info(f"Successfully generated Buffett output for {ticker}") # Add logging
         return response
     except RetryError as e:

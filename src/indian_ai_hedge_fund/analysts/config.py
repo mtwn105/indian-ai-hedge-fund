@@ -4,6 +4,7 @@ from indian_ai_hedge_fund.analysts.ben_graham import ben_graham_analyst
 from indian_ai_hedge_fund.analysts.technical import technical_analyst
 from indian_ai_hedge_fund.utils.logging_config import logger
 
+
 def get_analysts() -> Dict[str, Tuple[str, Callable]]:
     """Get available analysts with their display names and functions"""
     logger.debug("Getting available analysts")

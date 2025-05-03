@@ -12,7 +12,8 @@ from functools import wraps
 from indian_ai_hedge_fund.analysts.config import get_analysts
 import pandas as pd
 import json
-from indian_ai_hedge_fund.prompts.portfolio_review import SYSTEM_PROMPT, SYNTHESIS_INSTRUCTIONS, HUMAN_SYNTHESIS_TEMPLATE
+from indian_ai_hedge_fund.prompts.portfolio_review import SYSTEM_PROMPT, HUMAN_SYNTHESIS_TEMPLATE
+from indian_ai_hedge_fund.utils.formatting import format_holdings_for_prompt, format_analyst_report_for_prompt
 
 def wrap_with_progress(func: Callable, agent_name: str, task_description: str = "Executing task") -> Callable:
     """Wrap a function with progress tracking updates using AgentProgress."""
@@ -167,40 +168,25 @@ def main():
 
         # 5. Prepare data for LLM
         logger.info("Preparing final prompt for LLM synthesis")
-        # Format holdings data (use DataFrame string representation if available)
-        holdings_str = "Holdings data not available or couldn't be processed."
-        if holdings_df is not None:
-             holdings_str = f"Current Portfolio Holdings:\\n```\\n{holdings_df.to_string()}\\n```"
-        elif holdings_data:
-             holdings_str = f"Current Portfolio Holdings (raw):\\n```\\n{str(holdings_data)}\\n```"
 
-        # Format analyst reports
-        reports_str = "\\n\\nAnalyst Reports:\\n"
-        reports_str += "="*20 + "\\n"
+        # Format holdings using the utility function and add heading
+        formatted_holdings = format_holdings_for_prompt(holdings_df if holdings_df is not None else holdings_data)
+        holdings_str = f"## Holdings\n\n{formatted_holdings}"
+        logger.debug(f"Formatted holdings string for prompt:\n{holdings_str}")
+
+        # Format analyst reports with headings and subheadings
+        reports_str = "## Analyst Reports\n\n"
 
         if analyst_reports:
             for name, report in analyst_reports.items():
-                 reports_str += f"\\n--- {name} Report ---\\n"
-                 # Try formatting based on expected report structure (e.g., dict, str)
-                 if isinstance(report, (dict, list)):
-                     try:
-                        reports_str += f"```json\\n{json.dumps(report, indent=2)}\\n```\\n" # Use json for structured data
-                     except TypeError as json_err:
-                        logger.warning(f"Could not JSON serialize report for {name}: {json_err}. Falling back to string.")
-                        reports_str += f"{str(report)}\\n" # Assume string otherwise
-                 else:
-                     reports_str += f"{str(report)}\\n" # Assume string otherwise
+                 reports_str += format_analyst_report_for_prompt(name, report)
+
         else:
-            reports_str += "No analyst reports were generated (possibly due to missing tickers or errors)."
-
-        # 6. Construct the prompt and call LLM
-        final_system_prompt = SYSTEM_PROMPT + SYNTHESIS_INSTRUCTIONS
-
-        human_message_template = HUMAN_SYNTHESIS_TEMPLATE
+            reports_str += "No analyst reports were generated (possibly due to missing tickers, errors, or no analysts selected)."
 
         prompt = ChatPromptTemplate.from_messages([
-            ("system", final_system_prompt),         # Use combined system prompt
-            ("human", human_message_template)    # Use imported template string
+            ("system", SYSTEM_PROMPT),         # Use combined system prompt
+            ("human", HUMAN_SYNTHESIS_TEMPLATE)    # Use imported template string
         ])
 
         chain = prompt | llm
