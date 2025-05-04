@@ -5,4 +5,4 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-llm = init_chat_model(model="gpt-4o", model_provider='openai', temperature=0)
+llm = init_chat_model(model="gemini-2.0-flash", model_provider='google_genai', temperature=0)
