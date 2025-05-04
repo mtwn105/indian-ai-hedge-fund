@@ -1,7 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate
 from rich.markdown import Markdown
 from rich.console import Console
-from rich.table import Table
+from rich.table import Table as RichTable
 import questionary
 from indian_ai_hedge_fund.tools.zerodha import get_holdings
 from typing import List, Dict, Tuple, Callable, Any
@@ -15,6 +15,8 @@ import pandas as pd
 import json
 from indian_ai_hedge_fund.prompts.portfolio_review import SYSTEM_PROMPT, HUMAN_SYNTHESIS_TEMPLATE
 from indian_ai_hedge_fund.utils.formatting import format_holdings_for_prompt, format_analyst_report_for_prompt
+from datetime import datetime
+from indian_ai_hedge_fund.utils.pdf_generator import generate_pdf_report
 
 def wrap_with_progress(func: Callable, agent_name: str, task_description: str = "Executing task") -> Callable:
     """Wrap a function with progress tracking updates using AgentProgress."""
@@ -175,8 +177,8 @@ def main():
                 console.print(f"\n[bold yellow]Report from {name}:[/bold yellow]")
                 # Check if the report is a dictionary (like from Technical Analyst)
                 if isinstance(report, dict):
-                    # Create a table for dictionary reports
-                    table = Table(show_header=True, header_style="bold magenta", show_lines=True)
+                    # Create a table for dictionary reports using RichTable
+                    table = RichTable(header_style="bold magenta", show_lines=True)
                     table.add_column("Ticker", style="dim", width=12)
                     table.add_column("Signal")
                     table.add_column("Confidence (%)", justify="right")
@@ -272,6 +274,18 @@ def main():
             console.print("─" * 80 + "\n")
         else:
             console.print("[red]Final synthesis could not be completed due to errors.[/red]")
+
+        # 8. Generate PDF report
+        # Use holdings_df if available, otherwise fall back to original holdings_data
+        holdings_for_pdf = holdings_df if holdings_df is not None else holdings_data
+        report_date_str = datetime.now().strftime("%Y%m%d")
+        pdf_filename = f"india_ai_hedge_fund_analysis_report_{report_date_str}.pdf"
+        try:
+            generate_pdf_report(holdings_for_pdf, analyst_reports, final_response, pdf_filename)
+            console.print(f"\n[bold green]✓ Analysis report saved to {pdf_filename}[/bold green]")
+        except Exception as e:
+            logger.error(f"Failed to generate PDF report: {e}")
+            console.print(f"\n[red bold]Error generating PDF report:[/red bold] {str(e)}")
 
     except KeyboardInterrupt:
         logger.warning("Operation cancelled by user")
